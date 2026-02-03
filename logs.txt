@@ -1,0 +1,30 @@
+2026-02-03: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03-20-38-16: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 | 20:38:50: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 | 20:39:32: User created playlist<id: 51> (s)
+2026-02-03 | 20:39:50: User added song with id: 4 to playlist<id: 51> (s)
+2026-02-03-20-43-22: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03-20-44-23: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03-20-44-31: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03-20-44-38: User added song with id: 3 to playlist<id: 51> (s)
+2026-02-03-20-44-46: User deleted song with id: 3 from playlist<id: 51> (s)
+2026-02-03 | 20:47:47: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 | 20:47:52: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 | 20:47:55: User created playlist<id: 51> (s)
+2026-02-03 | 20:48:17: User added song with id: 1 to playlist<id: 51> (s)
+2026-02-03 20:56:22: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 20:56:29: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 20:56:33: User added song with id: 3 to playlist<id: 51> (s)
+2026-02-03 21:04:55: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 21:05:00: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 21:05:12: User added song with id: 2 to playlist<id: 51> (s)
+2026-02-03 21:05:15: User deleted song with id: 2 from playlist<id: 51> (s)
+2026-02-03 21:05:23: User created playlist<id: 52> (4)
+2026-02-03 21:24:20: User<id: 1> (user1) logged in from 192.168.0.85.
+2026-02-03 21:24:29: User added song with id: 1 to playlist<id: 52> (4)
+2026-02-03 21:26:39: User<id: 1> (user1) logged in from 192.168.0.85.
+2026-02-03 21:26:46: User<id: 1> (user1) logged in from 192.168.0.215.
+2026-02-03 21:26:58: User deleted song with id: 1 from playlist<id: 52> (4)

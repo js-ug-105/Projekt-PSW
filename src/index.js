@@ -1,199 +1,170 @@
-// app.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const app = express();
+const fs = require('fs');
+const path = require('path');
+const mqtt = require('mqtt');
 
+const mqttClient = mqtt.connect('mqtt://localhost:1883');
 const apiData = require('./data.json');
+const logFilePath = path.join(__dirname, '..', 'logs.txt');
 
-
+const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
-/*let apiData = {
-    "accounts": [
-      { accountId: 1, login: 'Song 1', password: "password", email: "Author 1", playlists: [1] },
-      { accountId: 2, login: 'Song 2', password: "password", email: "Author 2", playlists: [2] },
-    ],
-    "artists": [
-      { artistId: 1, artistName: 'Author 1', albums: [1] },
-      { artistId: 2, artistName: 'Author 2', albums: [2] },
-    ],
-    "playlists": [
-      { playlistId: 1, playlistName: 'Playlist 1', author: "Author 1", authorIdReference: 1, songs: [1] },
-      { playlistId: 2, playlistName: 'Playlist 2', author: "Author 2", authorIdReference: 2,  songs: [2] },
-    ],
-    "songs": [
-      { songId: 1, songTitle: 'Song 1', artist: "Author 1", artistIdReference: 1, albumTitle: "Album 1", albumIdReference: 1 },
-      { songId: 2, songTitle: 'Song 2', artist: "Author 2", artistIdReference: 2, albumTitle: "Album 2", albumIdReference: 2 },
-    ],
-  };*/
+// ==========================================
+// 1. KONKRETNE TRASY POST
+// ==========================================
 
-// Create (POST):
+app.post('/api/logs', (req, res) => {
+    const { entry } = req.body;
+    if (!entry) return res.status(400).send('Brak treści logu');
 
-// Add a new account
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    if (ip === '::1') ip = '127.0.0.1';
+    const cleanIp = ip.replace(/^.*:/, '');
+
+    const finalEntry = entry.replace('adres IP', cleanIp);
+
+    fs.appendFile(logFilePath, finalEntry + '\n', (err) => {
+        if (err) return res.status(500).send('Błąd serwera');
+        res.status(201).send('Zalogowano pomyślnie');
+    });
+});
+
 app.post('/api/accounts/', (req, res) => {
-  const accounts = apiData["accounts"]
-  const { login, password, email, playlists } = req.body;
-  const newAccount = { accountId: accounts.length + 1, login, password, email, playlists };
-  accounts.push(newAccount);
-  res.status(201).json(newAccount);
+    const accounts = apiData["accounts"];
+    const { login, password, email, playlists } = req.body;
+    const newAccount = { accountId: accounts.length + 1, login, password, email, playlists };
+    accounts.push(newAccount);
+    res.status(201).json(newAccount);
 });
-// Add a new artist
-app.post('/api/artists/', (req, res) => {
-  const artists = apiData["artists"]
-  const { artistName, albums } = req.body;
-  const newArtist = { artistId: artists.length + 1, artistName, albums };
-  artists.push(newArtist);
-  res.status(201).json(newArtist);
-});
-// Add a new playlist
+
 app.post('/api/playlists/', (req, res) => {
-  const playlists = apiData["playlists"]
-  const { playlistName, author, authorIdReference, songs } = req.body;
-  const newPlaylist = { playlistId: playlists.length + 1, playlistName, author, authorIdReference, songs };
-  playlists.push(newPlaylist);
-  res.status(201).json(newPlaylist);
-});
-// Add a new song
-app.post('/api/songs/', (req, res) => {
-  const songs = apiData["songs"]
-  const { songTitle, author, authorId, albumTitle, albumId } = req.body;
-  const newSong = { songId: songs.length + 1, songTitle , author, authorId, albumTitle, albumId};
-  songs.push(newSong);
-  res.status(201).json(newSong);
-});
+    const playlists = apiData["playlists"];
+    const { playlistName, author, authorIdReference, songs } = req.body;
+    
+    // Generowanie nowego ID
+    const newId = playlists.length > 0 ? Math.max(...playlists.map(p => p.playlistId)) + 1 : 1;
+    
+    const newPlaylist = { 
+        playlistId: newId, 
+        playlistName, 
+        author, 
+        authorIdReference, 
+        songs: songs || [] 
+    };
 
-// Read (GET):
+    playlists.push(newPlaylist);
 
-// API welcome
-app.get('/api/', (req, res) => {
-  res.send('Welcome to the Music API!');
-});
+    // MQTT: Powiadomienie o nowej playliście
+    const topic = `music/notify/${newPlaylist.authorIdReference}`;
+    mqttClient.publish(topic, JSON.stringify({ 
+        type: 'REFRESH', 
+        action: 'CREATED', 
+        name: newPlaylist.playlistName 
+    }));
 
-// Search artists
-app.get('/api/artists', (req, res) => {
-  let artists = apiData.artists;
-
-  const { id, name } = req.query;
-
-  if (id) {
-    artists = artists.filter(a => a.artistId === Number(id));
-  }
-
-  if (name) {
-    artists = artists.filter(a =>
-      a.artistName.toLowerCase().includes(name.toLowerCase())
-    );
-  }
-  res.json(artists)
+    res.status(201).json(newPlaylist);
 });
 
-// Search playlists
+// ==========================================
+// 2. KONKRETNE TRASY GET
+// ==========================================
+
 app.get('/api/playlists', (req, res) => {
-  let playlists = apiData.playlists;
+    let playlists = apiData.playlists;
+    const { id, name, author, authorIdReference } = req.query;
 
-  const {id, name, author} = req.query;
-  if (id) {
-    playlists = playlists.filter(p => p.playlistId === Number(id));
-  }
+    if (id) playlists = playlists.filter(p => p.playlistId === Number(id));
+    if (name) playlists = playlists.filter(p => p.playlistName.toLowerCase().includes(name.toLowerCase()));
+    if (author) playlists = playlists.filter(p => p.author.toLowerCase().includes(author.toLowerCase()));
+    if (authorIdReference) playlists = playlists.filter(p => p.authorIdReference === Number(authorIdReference));
 
-  if (name) {
-    playlists = playlists.filter(p => 
-      p.playlistName.toLowerCase().includes(name.toLowerCase())
-    );
-  }
-
-  if (author) {
-    playlists = playlists.filter(p =>
-      p.author.toLowerCase().includes(author.toLowerCase())
-    );
-  }
-
-  res.json(playlists)
-
+    res.json(playlists);
 });
 
-// Search songs
-app.get('/api/songs', (req,res) => {
-  let songs = apiData.songs
+app.get('/api/songs', (req, res) => {
+    let songs = apiData.songs;
+    const { id, title, author } = req.query;
 
-  const {id, title, author, album} = req.query
-
-  if (id) {
-    songs = songs.filter(s => s.songId === Number(id));
-  }
-  if (title) {
-    songs = songs.filter(s => 
-      s.songTitle.toLowerCase().includes(title.toLowerCase())
-    );
-  }
-  if (author) {
-    songs = songs.filter(s =>
-      s.author.toLowerCase().includes(author.toLowerCase())
-    );
-  }
-  if (album) {}
-  res.json(songs)
+    if (id) songs = songs.filter(s => s.songId === Number(id));
+    if (title) songs = songs.filter(s => s.songTitle.toLowerCase().includes(title.toLowerCase()));
+    if (author) songs = songs.filter(s => s.author.toLowerCase().includes(author.toLowerCase()));
+    res.json(songs);
 });
 
-// Get all songs
+// ==========================================
+// 3. TRASY OGÓLNE (Dynamiczne :address)
+// ==========================================
+
 app.get('/api/:address/', (req, res) => {
-  res.json(apiData[req.params.address])
-})
-// Get item by id
-app.get('/api/:address/:id/', (req, res) => {
-  const data = apiData[req.params.address];
-  if (!data) return res.status(404).send("Invalid resource");
-  const id = parseInt(req.params.id)
-  const item = data.find(i => 
-    i?.accountId === id ||
-    i?.artistId === id ||
-    i?.playlistId === id  ||
-    i?.songId === id
-  );
-  if (!item) return res.status(404).send("Item not found");
-  res.json(item);
+    const data = apiData[req.params.address];
+    if (!data) return res.status(404).send("Invalid resource");
+    res.json(data);
 });
 
-// Update (PATCH):
+app.get('/api/:address/:id/', (req, res) => {
+    const data = apiData[req.params.address];
+    if (!data) return res.status(404).send("Invalid resource");
+    const id = parseInt(req.params.id);
+    const item = data.find(i => 
+        i?.accountId === id || i?.artistId === id || i?.playlistId === id || i?.songId === id
+    );
+    if (!item) return res.status(404).send("Item not found");
+    res.json(item);
+});
 
 app.patch('/api/:address/:id/', (req, res) => {
-  const data = apiData[req.params.address];
-  if (!data) return res.status(404).send("Invalid resource");
-  const id = parseInt(req.params.id)
-  const index = data.findIndex( i =>
-    i?.accountId === id ||
-    i?.artistId === id ||
-    i?.playlistId === id  ||
-    i?.songId === id
-  );
+    const data = apiData[req.params.address];
+    if (!data) return res.status(404).send("Invalid resource");
+    const id = parseInt(req.params.id);
+    const index = data.findIndex(i => 
+        i?.accountId === id || i?.artistId === id || i?.playlistId === id || i?.songId === id
+    );
 
-  if (index === -1) return res.status(404).send("Item not found");
-  data[index] = {
-  ...data[index],
-  ...req.body
-  };
-  res.json(data[index])
+    if (index === -1) return res.status(404).send("Item not found");
+
+    // Aktualizacja obiektu
+    data[index] = { ...data[index], ...req.body };
+
+    // MQTT: Jeśli aktualizujemy playlistę, powiadamiamy właściciela
+    if (req.params.address === 'playlists') {
+        const userId = data[index].authorIdReference;
+        const topic = `music/notify/${userId}`;
+        mqttClient.publish(topic, JSON.stringify({ 
+            type: 'REFRESH', 
+            action: 'UPDATED', 
+            id: id 
+        }));
+    }
+
+    res.json(data[index]);
 });
 
-// Delete (DELETE)
 app.delete('/api/:address/:id/', (req, res) => {
-  const data = apiData[req.params.address];
-  if (!data) return res.status(404).send("Invalid resource");
-  const id = parseInt(req.params.id);
-  const index = data.findIndex(i => 
-    i?.accountId === id ||
-    i?.artistId === id ||
-    i?.playlistId === id  ||
-    i?.songId === id
-  );
+    const data = apiData[req.params.address];
+    if (!data) return res.status(404).send("Invalid resource");
+    const id = parseInt(req.params.id);
+    const index = data.findIndex(i => 
+        i?.accountId === id || i?.artistId === id || i?.playlistId === id || i?.songId === id
+    );
 
-  if (index === -1) return res.status(404).send("Item not found");
-  data.splice(index, 1)
-  res.send("Item deleted succesfully");
+    if (index === -1) return res.status(404).send("Item not found");
+    
+    // Pobieramy ID właściciela przed usunięciem (jeśli to playlista)
+    const ownerId = data[index].authorIdReference;
+    const isPlaylist = req.params.address === 'playlists';
+
+    data.splice(index, 1);
+
+    if (isPlaylist && ownerId) {
+        mqttClient.publish(`music/notify/${ownerId}`, JSON.stringify({ type: 'REFRESH', action: 'DELETED' }));
+    }
+
+    res.send("Item deleted successfully");
 });
-
 
 app.listen(3000, () => {
     console.log('Server running on http://localhost:3000');
