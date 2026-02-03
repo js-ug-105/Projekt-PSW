@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music API Client - Player</title>
+    <style>
+        :root { --primary: #1DB954; --dark: #121212; --light: #f8f9fa; --gray: #181818; --panel: #282828; --border: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--dark); color: var(--light); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Układ trzech kolumn */
+        .sidebar { width: 25%; background: black; padding: 20px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .player-sidebar { width: 25%; background: black; padding: 20px; border-left: 1px solid var(--border); box-sizing: border-box; display: flex; flex-direction: column; }
+
+        .content-container { width: 100%; max-width: 800px; }
+        
+        .panel { background: var(--panel); padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        input { padding: 12px; border-radius: 8px; border: none; background: #3e3e3e; color: white; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        button { padding: 12px 20px; border-radius: 20px; border: none; background: var(--primary); font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; }
+        button:hover { transform: scale(1.02); }
+        
+        .results-table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 10px; }
+        .results-table th, .results-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        .clickable { color: var(--primary); cursor: pointer; text-decoration: underline; }
+        .hidden { display: none; }
+        .type-badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; background: #444; }
+        .back-btn { background: #555; color: white; margin-bottom: 20px; width: auto; }
+
+        /* Styl Odtwarzacza */
+        .now-playing-box { text-align: center; margin-top: 20px; }
+        .album-art-placeholder { width: 100%; aspect-ratio: 1; background: #333; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #555; }
+        .player-controls { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
+        .play-btn { width: 60px; height: 60px; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h1>Music API</h1>
+    <div id="authStatus" style="font-size: 0.8rem; color: #aaa;">Niezalogowany</div>
+
+    <div id="loginPanel" class="panel">
+        <h3>Logowanie</h3>
+        <input type="text" id="loginInput" placeholder="Login (user1)">
+        <input type="password" id="passInput" placeholder="Hasło">
+        <button onclick="login()">Zaloguj</button>
+    </div>
+
+    <div id="playlistPanel" class="panel hidden">
+        <h3 id="userWelcome">Witaj</h3>
+        <input type="text" id="newPlaylistName" placeholder="Nazwa nowej playlisty">
+        <button onclick="createPlaylist()">Stwórz playlistę</button>
+        <button onclick="logout()" style="background:#444; color:white; margin-top:10px;">Wyloguj</button>
+    </div>
+</div>
+
+<main class="main-content">
+    <div class="content-container">
+        <div id="searchView">
+            <div class="panel">
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="searchInput" placeholder="Szukaj piosenek..." style="margin:0">
+                    <button onclick="performSearch()" style="width: auto;">Szukaj</button>
+                </div>
+            </div>
+            <table class="results-table">
+                <thead><tr><th>#</th><th>Nazwa i Autor</th><th>Typ</th></tr></thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+
+        <div id="playlistDetailView" class="hidden">
+            <button class="back-btn" onclick="showSearch()">← Powrót</button>
+            <div class="panel">
+                <h2 id="detName"></h2>
+                <p>Autor: <span id="detAuthor"></span></p>
+                <div id="editTools" class="hidden">
+                    <input type="number" id="songIdInput" placeholder="ID piosenki">
+                    <button onclick="addSongToPlaylist()" style="width: auto;">Dodaj</button>
+                </div>
+            </div>
+            <table class="results-table">
+                <thead><tr><th>ID</th><th>Tytuł</th><th>Akcja</th></tr></thead>
+                <tbody id="detSongsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<div class="player-sidebar">
+    <h3>Teraz grane</h3>
+    <div class="panel now-playing-box">
+        <div class="album-art-placeholder">♫</div>
+        <h2 id="playerTitle">Wybierz utwór</h2>
+        <p id="playerArtist" style="color: #aaa;">-</p>
+        
+        <div class="player-controls">
+            <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+        </div>
+        <div style="margin-top: 15px; font-size: 0.8rem; color: var(--primary);" id="playerStatus">Zatrzymano</div>
+    </div>
+</div>
+
+<script>
+    const API_URL = 'http://192.168.0.215:3000/api';
+    let currentUser = null;
+    let isPlaying = false;
+
+    // --- FUNKCJA ODTWARZANIA ---
+    function playSong(title, artist) {
+        document.getElementById('playerTitle').innerText = title;
+        document.getElementById('playerArtist').innerText = artist;
+        isPlaying = true;
+        updatePlayerUI();
+    }
+
+    function togglePlay() {
+        if (document.getElementById('playerTitle').innerText === "Wybierz utwór") return;
+        isPlaying = !isPlaying;
+        updatePlayerUI();
+    }
+
+    function updatePlayerUI() {
+        const btn = document.getElementById('playBtn');
+        const status = document.getElementById('playerStatus');
+        btn.innerText = isPlaying ? "⏸" : "▶";
+        status.innerText = isPlaying ? "Odtwarzanie..." : "Zatrzymano";
+        btn.style.background = isPlaying ? "#fff" : "var(--primary)";
+    }
+
+    // --- LOGOWANIE I SEARCH (Zmodyfikowany render) ---
+    async function login() {
+        const log = document.getElementById('loginInput').value;
+        const pass = document.getElementById('passInput').value;
+        try {
+            const res = await fetch(`${API_URL}/accounts`);
+            const users = await res.json();
+            const user = users.find(u => u.login === log && u.password === pass);
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginPanel').classList.add('hidden');
+                document.getElementById('playlistPanel').classList.remove('hidden');
+                document.getElementById('authStatus').innerText = `Zalogowano: ${user.login}`;
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function performSearch() {
+        const query = document.getElementById('searchInput').value;
+        const body = document.getElementById('resultsBody');
+        body.innerHTML = '<td>Szukanie...</td>';
+        
+        // Szukamy piosenek i playlist
+        const [songs, playlists] = await Promise.all([
+            fetch(`${API_URL}/songs?title=${query}`).then(r => r.json()),
+            fetch(`${API_URL}/playlists?name=${query}`).then(r => r.json())
+        ]);
+
+        body.innerHTML = '';
+        
+        // Render piosenek
+        songs.forEach((s, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${idx+1}</td>
+                <td><span class="clickable" onclick="playSong('${s.songTitle}', '${s.artist}')">${s.songTitle}</span><br><small>${s.artist}</small></td>
+                <td><span class="type-badge">Piosenka</span></td>`;
+            body.appendChild(tr);
+        });
+
+        // Render playlist
+        playlists.forEach((p) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>-</td>
+                <td><span class="clickable" style="color:var(--primary)" onclick="openPlaylist(${p.playlistId})">${p.playlistName}</span></td>
+                <td><span class="type-badge">Playlista</span></td>`;
+            body.appendChild(tr);
+        });
+    }
+
+    async function openPlaylist(id) {
+        const res = await fetch(`${API_URL}/playlists/${id}`);
+        const activePlaylist = await res.json();
+        document.getElementById('searchView').classList.add('hidden');
+        document.getElementById('playlistDetailView').classList.remove('hidden');
+        document.getElementById('detName').innerText = activePlaylist.playlistName;
+        document.getElementById('detAuthor').innerText = activePlaylist.author;
+        
+        const body = document.getElementById('detSongsBody');
+        body.innerHTML = "";
+        for (const sId of activePlaylist.songs) {
+            const r = await fetch(`${API_URL}/songs/${sId}`);
+            if (r.ok) {
+                const s = await r.json();
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${s.songId}</td>
+                    <td class="clickable" onclick="playSong('${s.songTitle}', '${s.artist}')">${s.songTitle}</td>
+                    <td>-</td>`;
+                body.appendChild(tr);
+            }
+        }
+    }
+
+    function showSearch() {
+        document.getElementById('searchView').classList.remove('hidden');
+        document.getElementById('playlistDetailView').classList.add('hidden');
+    }
+
+    function logout() { location.reload(); }
+</script>
+</body>
+</html>
