@@ -4,14 +4,23 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const mqtt = require('mqtt');
+const https = require('https');
 
-const mqttClient = mqtt.connect('mqtt://localhost:1883');
+const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'certs', 'server.key')),
+    cert: fs.readFileSync(path.join(__dirname, 'certs', 'server.crt'))
+};
+const mqttOptions = {
+    rejectUnauthorized: false 
+};
+const mqttClient = mqtt.connect('mqtts://localhost:8883', mqttOptions);
 const apiData = require('./data.json');
 const logFilePath = path.join(__dirname, '..', 'logs.txt');
 
 const app = express();
 app.use(bodyParser.json());
 app.use(cors());
+
 
 // ==========================================
 // 1. KONKRETNE TRASY POST
@@ -166,6 +175,7 @@ app.delete('/api/:address/:id/', (req, res) => {
     res.send("Item deleted successfully");
 });
 
-app.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
+const PORT = 3000;
+https.createServer(sslOptions, app).listen(PORT, () => {
+    console.log(`Server running on https://localhost:${PORT}`)
 });

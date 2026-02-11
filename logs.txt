@@ -1,7 +1,9 @@
-2026-02-03 22:27:51: User<id: 1> (user1) logged in from 192.168.0.85.
-2026-02-03 22:29:45: User<id: 1> (user1) logged in.
-2026-02-03 22:30:33: User created playlist<id: 51> (s)
-2026-02-03 22:35:20: User<id: 1> (user1) logged in from 192.168.0.85.
-2026-02-03 22:35:32: User created playlist<id: 51> (s)
-2026-02-03 22:35:40: User added song with id: 3 to playlist<id: 51> (s)
-2026-02-03 22:36:43: User deleted song with id: 21 from playlist<id: 25> (Top Hits 25)
+2026-02-04 18:52:32: User created playlist<id: 51> (s)
+2026-02-04 18:52:45: User added song with id: 12 to playlist<id: 51> (s)
+2026-02-04 18:53:04: User deleted song with id: 12 from playlist<id: 51> (s)
+2026-02-04 18:53:26: User added song with id: 12 to playlist<id: 51> (s)
+2026-02-04 18:53:37: User created playlist<id: 52> (1)
+2026-02-04 19:01:45: User deleted song with id: 12 from playlist<id: 51> (s)
+2026-02-10 13:52:53: User<id: 1> (user1) logged in from 127.0.0.1.
+2026-02-11 12:03:10: User<id: 1> (user1) logged in from 127.0.0.1.
+2026-02-11 17:03:07: User<id: 1> (user1) logged in from 127.0.0.1.

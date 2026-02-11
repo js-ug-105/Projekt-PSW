@@ -1,4 +1,4 @@
-const API_URL = 'http://192.168.0.215:3000/api';
+const API_URL = 'https://127.0.0.1:3000/api';
 let currentUser = null;
 let isPlaying = false;
 let mqttClient = null;
@@ -13,8 +13,7 @@ async function logEvent(message) {
         String(now.getHours()).padStart(2, '0') + ':' +
         String(now.getMinutes()).padStart(2, '0') + ':' +
         String(now.getSeconds()).padStart(2, '0');
-    
-    // Klient wysyła placeholder "adres IP", który Twój serwer zamienia na realne IP
+
     const entry = `${formattedDate}: ${message}`;
 
     try {
@@ -30,8 +29,11 @@ async function logEvent(message) {
 
 // --- MQTT (WebSockets przez port 9001) ---
 function setupMQTT(userId) {
-    // Łączymy się przez WebSockets zgodnie z Twoim listenerem na porcie 9001
-    mqttClient = mqtt.connect(`ws://192.168.0.215:9001`);
+    const options = {
+    protocol: 'ws'
+};
+
+    mqttClient = mqtt.connect(`ws://localhost:9001`, options);
 
     mqttClient.on('connect', () => {
         console.log("Połączono z MQTT przez WebSockets");
@@ -79,7 +81,6 @@ async function login() {
         if (user) {
             currentUser = user;
 
-            // Zapis ciasteczka (punkt do oceny "Inne")
             document.cookie = `music_user=${JSON.stringify(user)}; path=/; max-age=86400; SameSite=Lax`;
 
             document.getElementById('loginPanel').classList.add('hidden');
@@ -164,7 +165,6 @@ async function addSongToPlaylist() {
     }
 
     const newSongs = [...activePlaylist.songs, songId];
-    // Używamy trasy PATCH zgodnej z Twoim serwerem api.js
     const res = await fetch(`${API_URL}/playlists/${activePlaylist.playlistId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
