@@ -1,8 +1,0 @@
-{
-    "liveServer.settings.https": {
-        "enable": true,
-        "cert": "/home/jakub/UG/2025_zimowy/PROJEKT_PSW/src/certs/server.crt",
-        "key": "/home/jakub/UG/2025_zimowy/PROJEKT_PSW/src/certs/server.key",
-        "passphrase": ""
-    }
-}
